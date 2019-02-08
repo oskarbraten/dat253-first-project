@@ -12,20 +12,25 @@ public class quadScript : MonoBehaviour
     private float iso = 0.0f;
     private float slice = 0.0f;
 
-    void Start() {
+    void Start()
+    {
         print("void Start was called! Heck yeah!");
         update();
     }
 
-    void Update() {
+    void Update()
+    {
     }
 
-    void update() {
+    void update()
+    {
 
         var texture = new Texture2D(xdim, ydim, TextureFormat.RGB24, false); // garbage collector will tackle that it is new'ed 
 
-        for (int y = 0; y < ydim; y++) {
-            for (int x = 0; x < xdim; x++) {
+        for (int y = 0; y < ydim; y++)
+        {
+            for (int x = 0; x < xdim; x++)
+            {
                 float v = pixelValue(new Vector3(x, y, this.slice));
                 texture.SetPixel(x, y, new UnityEngine.Color(v, v, v));
             }
@@ -35,15 +40,24 @@ public class quadScript : MonoBehaviour
         texture.Apply();  // Apply all SetPixel calls
         GetComponent<Renderer>().material.mainTexture = texture;
 
+        var circle = marchingSquares(texture, true);
+
         mScript = GameObject.Find("GameObjectMesh").GetComponent<meshScript>();
+        mScript.createMeshGeometry(circle.Item1, circle.Item2);
+    }
+
+    Tuple<List<Vector3>, List<int>> marchingSquares(Texture2D texture, bool interpolated)
+    {
 
         List<Vector3> vertices = new List<Vector3>();
         List<int> indices = new List<int>();
 
         int index = 0;
 
-        for (int y = 0; y < (ydim); y += 1) {
-            for (int x = 0; x < (xdim); x += 1) {
+        for (int y = 0; y < (ydim); y += 1)
+        {
+            for (int x = 0; x < (xdim); x += 1)
+            {
 
                 float iso = 1.0f - this.iso;
 
@@ -54,12 +68,58 @@ public class quadScript : MonoBehaviour
 
                 float worldX = (x / 100.0f) - 0.5f;
                 float worldY = (y / 100.0f) - 0.5f;
-                float delta = (0.5f / 100.0f);
+                float step = (1.0f / 100.0f);
 
-                Vector3 l = new Vector3(worldX, worldY + delta, 0.0f);
-                Vector3 r = new Vector3(worldX + delta * 2, worldY + delta, 0.0f);
-                Vector3 t = new Vector3(worldX + delta, worldY + delta * 2, 0.0f);
-                Vector3 b = new Vector3(worldX + delta, worldY, 0.0f);
+                float deltaL = 0.005f;
+                float deltaR = 0.005f;
+                float deltaT = 0.005f;
+                float deltaB = 0.005f;
+
+                if (interpolated)
+                {
+                    if (tl < bl)
+                    {
+                        deltaL = 1.0f - ((iso - tl) / (bl - tl));
+                    }
+                    else
+                    {
+                        deltaL = ((iso - bl) / (tl - bl));
+                    }
+                    deltaL /= 100.0f;
+                    if (tr < br)
+                    {
+                        deltaR = 1.0f - ((iso - tr) / (br - tr));
+                    }
+                    else
+                    {
+                        deltaR = ((iso - br) / (tr - br));
+                    }
+                    deltaR /= 100.0f;
+                    if (tl < tr)
+                    {
+                        deltaT = 1.0f - ((iso - tr) / (tl - tr));
+                    }
+                    else
+                    {
+                        deltaT = ((iso - tl) / (tr - tl));
+                    }
+                    deltaT /= 100.0f;
+
+                    if (bl < br)
+                    {
+                        deltaB = 1.0f - ((iso - br) / (bl - br));
+                    }
+                    else
+                    {
+                        deltaB = ((iso - bl) / (br - bl));
+                    }
+                    deltaB /= 100.0f;
+                }
+
+                Vector3 l = new Vector3(worldX, worldY + deltaL, 0.0f);
+                Vector3 r = new Vector3(worldX + step, worldY + deltaR, 0.0f);
+                Vector3 t = new Vector3(worldX + deltaT, worldY + step, 0.0f);
+                Vector3 b = new Vector3(worldX + deltaB, worldY, 0.0f);
 
                 bool p1 = tl >= iso;
                 bool p2 = tr >= iso;
@@ -67,8 +127,9 @@ public class quadScript : MonoBehaviour
                 bool p4 = bl >= iso;
 
                 string pattern = (p1 ? "1" : "0") + (p2 ? "1" : "0") + (p3 ? "1" : "0") + (p4 ? "1" : "0");
-                
-                switch (pattern) {
+
+                switch (pattern)
+                {
                     case "1110":
                     case "0001":
                         vertices.Add(l);
@@ -113,7 +174,7 @@ public class quadScript : MonoBehaviour
                         break;
                     case "0000":
                     case "1111":
-                        // do nothing.
+                    // do nothing.
                     default:
                         continue;
                 }
@@ -124,27 +185,27 @@ public class quadScript : MonoBehaviour
             }
         }
 
-        print(vertices.Count() + "");
-        print(indices.Count() + "");
-
-        mScript.createMeshGeometry(vertices, indices);
+        return (vertices, indices);
     }
 
     private static Vector3 origo = new Vector3(50.0f, 50.0f, 50.0f);
-    float pixelValue(Vector3 point) {
-        
+    float pixelValue(Vector3 point)
+    {
+
         float magnitude = (origo - point).magnitude;
         float intensity = magnitude / 50.0f;
 
         return intensity;
     }
 
-    public void slicePosSliderChange(float val) {
+    public void slicePosSliderChange(float val)
+    {
         this.slice = val;
         update();
     }
 
-    public void sliceIsoSliderChange(float val) {
+    public void sliceIsoSliderChange(float val)
+    {
         this.iso = val;
         update();
     }
